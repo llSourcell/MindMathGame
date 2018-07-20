@@ -31,3 +31,7 @@ $ node index.js
 - Open browser to  > http://localhost:3000, HTML page for the game to start 
 - Start Playing
 ```
+
+## Credits
+
+Credits for this code go to [KrasimirZI](https://github.com/KrasimirZl/MindMathGame/tree/master/public). I've merely created a wrapper to get people started. 
