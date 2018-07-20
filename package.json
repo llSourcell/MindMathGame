@@ -1,0 +1,10 @@
+{
+    "name": "MindMath-game",
+    "version": "0.0.1",
+    "description": "MindMath game using etherium contracts",
+    "dependencies": {
+        "express": "^4.15.2",
+        "socket.io": "^2.1.0",
+        "web3": "^0.20.1"
+    }
+}

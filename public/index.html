@@ -1,0 +1,344 @@
+<html>
+<head>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="web3.min.js"></script>
+
+	<style>
+		.item_clock { grid-area: item_clock; }
+		.item_account_info { grid-area: account_info; }
+		.item_main_game { grid-area: item_main_game; }
+		.item_power_ups { grid-area: item_power_ups; }
+		
+		.grid-container {
+		  display: grid;
+		  grid-template-areas:
+			'item_clock account_info account_info account_info account_info account_info'
+			'item_main_game item_main_game item_main_game item_main_game item_power_ups item_power_ups';
+		  grid-gap: 10px;
+		  background-color: #2196F3;
+		  padding: 10px;
+		}
+		.grid-container > div {
+		  background-color: rgba(255, 255, 255, 0.8);
+		  text-align: center;
+		  padding: 20px 0;
+		  font-size: 30px;
+		}
+		.button {
+			background-color: #4CAF50; /* Green */
+			border: none;
+			color: white;
+			padding: 15px 32px;
+			text-align: center;
+			text-decoration: none;
+			display: inline-block;
+			font-size: 24px;
+		}
+		</style>
+		</head>
+		<body>
+		
+		<div id="game">
+		<h1>Mind Math game, lets 'Solve AI or Die Trying!'</h1>
+		
+		<p><span style="font-weight:bold">Instructions:</span> The goal of the game is to accumulate 1000000 score by answering simple math questions.
+			Player is presented with two randomly generated numbers if player guess the number within the time limit wins score reward. If player don't guess will loose reward and score will decrease.
+			If time is over and player can't guess reward will be removed from the score and user will be present with new challenge.
+			<br><span style="font-weight:bold">User win the game if it reaches score 1000000.</span>
+			<br><br>
+			<span style="font-weight:bold">PowerUps</span> -  Accumulate score points and you can click on Power Up to buy it. This will increase reward and potential loose.
+			When buying power up complexity of questions increases.
+
+			<br><span style="font-weight:bold">Hint</span> - 0 is correct answer.
+		</p>
+
+		<input type="button" value="Start New Game" onclick="mindmath_start_game()" id="btn_start_new_game">
+		<input type="button" value="Give Up" onclick="mindmath_give_up()" id="btn_give_up">
+
+		<div class="grid-container">
+			<div class="item_clock">Time: <span id="game_time">12</span>s </div>
+		  	<div class="item_account_info">account: <span id="account_id">0xn354nheiothn8035hoiu45nhiortnh0835h456u</span>
+			  <br> Score: <span id="game_score">0</span> <img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token">
+			</div>
+		  	<div class="item_main_game">
+				<div id="game_hider">
+					<br>Prize: <span id="game_reward">1 </span>
+					<br><span>What is the sum of</span>
+					<br><span id="game_question">1+3</span>=
+					<br>
+					<input type="button" class="button" value="1" onclick="mindmath_send_answer(this)" id="btn_submit_answer1">
+					<input type="button" class="button" value="2" onclick="mindmath_send_answer(this)" id="btn_submit_answer2">
+					<input type="button" class="button" value="3" onclick="mindmath_send_answer(this)" id="btn_submit_answer3">
+					<input type="button" class="button" value="4" onclick="mindmath_send_answer(this)" id="btn_submit_answer4">
+				</div>
+					<br><span id="game_answer" style="color:blue; background-color: rgb(87, 177, 154);"></span>
+			</div>
+		  	<div class="item_power_ups">Power Up
+				<br><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token"><span onclick="mindmath_buy_powerup(ethereum_account,1);" id="powerup_1" style="color:blue; background-color: rgb(87, 177, 154);">1x</span><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token">
+				<br><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token"><span onclick="mindmath_buy_powerup(ethereum_account,10);" id="powerup_10" style="color:blue; background-color: coral;" >10x</span><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token">
+				<br><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token"><span onclick="mindmath_buy_powerup(ethereum_account,100);" id="powerup_100" style="color:blue; background-color: coral;">100x</span><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token">
+				<br><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token"><span onclick="mindmath_buy_powerup(ethereum_account,1000);" id="powerup_1000" style="color:blue; background-color: coral;">1000x</span><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token">
+				<br><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token"><span onclick="mindmath_buy_powerup(ethereum_account,10000);" id="powerup_10000" style="color:blue; background-color: coral;">10000x</span><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token">
+				<br><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token"><span onclick="mindmath_buy_powerup(ethereum_account,100000);" id="powerup_100000" style="color:blue; background-color: coral;">100000x</span><img src="mindmath_token.png" alt="Mind Math token" title="Mind Math token">
+			</div>
+		</div>
+		</div>
+   <script>
+
+	var ethereum_account = null;
+	var socket = io();
+
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// GUI related functions
+	/* Disable player controls
+	*/
+	function mindmath_gui_disable(_disable)
+	{
+		document.getElementById("btn_give_up").disabled = _disable;
+		document.getElementById("btn_submit_answer1").disabled = _disable;
+		document.getElementById("btn_submit_answer2").disabled = _disable;
+		document.getElementById("btn_submit_answer3").disabled = _disable;
+		document.getElementById("btn_submit_answer4").disabled = _disable;
+		if(_disable == true)
+			document.getElementById("game_hider").style.display = 'none';
+		else
+			document.getElementById("game_hider").style.display = 'block';
+	}
+
+	/* Init GUI with default values
+	*/
+	function mindmath_gui_init()
+	{
+		// Reset values of GUI elements.
+		document.getElementById("account_id").innerHTML = ethereum_account;
+		document.getElementById("game_score").innerHTML = "0";
+		document.getElementById("game_time").innerHTML = 0;
+		document.getElementById("game_question").innerHTML = "";
+		document.getElementById("game_reward").innerHTML = 0;
+		document.getElementById("game_answer").innerHTML = "";
+		document.getElementById("powerup_1").style.backgroundColor = 'DarkGreen';
+		document.getElementById("powerup_1").style.backgroundColor = 'coral';
+		document.getElementById("powerup_1").style.backgroundColor = 'DarkGreen';
+		document.getElementById("powerup_10").style.backgroundColor = 'coral';
+		document.getElementById("powerup_100").style.backgroundColor = 'coral';
+		document.getElementById("powerup_1000").style.backgroundColor = 'coral';
+		document.getElementById("powerup_10000").style.backgroundColor = 'coral';
+		document.getElementById("powerup_100000").style.backgroundColor = 'coral';
+
+		mindmath_gui_disable(true);
+	}
+
+	/* Update background color of powerup bar
+	*/
+	function mindmath_gui_update_powerup( _html_element_id, _power_up, _owned_power_up)
+	{
+		if( _owned_power_up >= _power_up )
+			_html_element_id.style.backgroundColor = 'DarkGreen'; // player own this power up
+		else
+			_html_element_id.style.backgroundColor = 'coral'; // player don't own this power up
+	}
+
+	/* Update game GUI with data from node.js backend
+	*/
+	function mindmath_gui_update(msg)
+	{
+		// Update game UI. 
+		document.getElementById("game_answer").innerHTML = msg.response;
+		if( msg.response.includes("WRONG") ) // Answer is wrong
+		{
+			document.getElementById("game_answer").style.backgroundColor = 'coral';
+		}
+		else // Answer is correct
+		{
+			document.getElementById("game_answer").style.backgroundColor = 'DarkGreen';
+		}
+		
+		document.getElementById("btn_submit_answer1").value = msg.answers[0];
+		document.getElementById("btn_submit_answer2").value = msg.answers[1];
+		document.getElementById("btn_submit_answer3").value = msg.answers[2];
+		document.getElementById("btn_submit_answer4").value = msg.answers[3];
+
+		document.getElementById("game_question").innerHTML = msg.question;
+		document.getElementById("game_reward").innerHTML = msg.reward;
+		document.getElementById("game_score").innerHTML = msg.score;
+		document.getElementById("game_time").innerHTML = msg.time_to_answer;
+
+		// Update power_up panel
+		mindmath_gui_update_powerup( document.getElementById("powerup_1"), 1, msg.powerup);
+		mindmath_gui_update_powerup( document.getElementById("powerup_10"), 10, msg.powerup);
+		mindmath_gui_update_powerup( document.getElementById("powerup_100"), 100, msg.powerup);
+		mindmath_gui_update_powerup( document.getElementById("powerup_1000"), 1000, msg.powerup);
+		mindmath_gui_update_powerup( document.getElementById("powerup_10000"), 10000, msg.powerup);
+		mindmath_gui_update_powerup( document.getElementById("powerup_100000"), 100000, msg.powerup);
+	}
+
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Player-Game interaction related functions. Call Node.js backed via emitting message.
+	/* Player wants to start new game
+	*/
+	function mindmath_start_game()
+	{
+		if( ethereum_account == null )
+		{
+			alert("Ethereum account missing! Please install MetaMask and login to ethereum network where game is hosted!")
+			return;
+		}
+		socket.emit('MESSAGE_GAME_START', {"account_id":ethereum_account});
+	}
+
+	/* Player wants to give up
+	*/
+	function mindmath_give_up()
+	{
+		socket.emit('MESSAGE_GAME_GIVEUP', {"account_id":ethereum_account});
+	}
+
+	/* Player wants to send answer
+	*/
+	function mindmath_send_answer(_button)
+	{
+		var player_answer = _button.value;
+		socket.emit('MESSAGE_GAME_SEND_ANSWER', {"account_id":ethereum_account,"answer":player_answer});
+	}
+
+	/* Player wants to buy power up
+	*/
+	function mindmath_buy_powerup(_ethereum_account,_amount)
+	{
+		socket.emit('MESSAGE_GAME_BUY_POWERUP', {"account_id":_ethereum_account, "requested_powerup":_amount});
+	}
+
+	/* Ask Node.js to initialize new player
+	*/
+	function mindmath_game_init(_ethereum_account)
+	{
+		socket.emit('MESSAGE_GAME_INIT', {"account_id":_ethereum_account});
+	}
+
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Messages received back from Node.js which require to be handled
+	/* Message received from backend when game is started
+	*/
+	socket.on('MESSAGE_GAME_START_RESPONSE', function(msg)
+	{
+		// Ignore messages not for this game
+		if( msg.account_id != ethereum_account )
+			return;
+
+		mindmath_gui_init();
+		// Enable GUI controls so user can interact with
+		mindmath_gui_disable(false);
+	});
+	
+	/* Message received from backend when player give up or server send game end
+	*/
+	socket.on('MESSAGE_GAME_GIVEUP_RESPONSE', function(msg)
+	{
+		// Ignore messages not for this game
+		if( msg.account_id != ethereum_account )
+			return;
+
+		mindmath_gui_disable(true);
+	});
+
+	/* Message received from backend when browser need to update game GUI
+	*/
+	socket.on('MESSAGE_GAME_GUI_UPDATE', function(msg)
+	{
+		// Ignore messages not for this game
+		if( msg.account_id != ethereum_account )
+			return;
+		mindmath_gui_update(msg);
+	});
+
+	/* Message received from backend when game is lost
+	*/
+	socket.on('MESSAGE_GAME_OVER', function(msg)
+	{
+		// Ignore messages not for this game
+		if( msg.account_id != ethereum_account )
+			return;
+
+		mindmath_gui_update(msg);
+		mindmath_gui_disable(true); // Disable GUI no more Player input is allowed
+		document.getElementById("game_answer").style.backgroundColor = 'coral'; // Set red color for response, Player lost the game
+	})
+
+	/* Message received from backend when player gives wrong answer.
+	* Play song to indicate to user faster what is the result from the answer
+	*/
+	socket.on('MESSAGE_GAME_ANSWER_WRONG', function(msg)
+	{
+		// Ignore messages not for this game
+		if( msg.account_id != ethereum_account )
+			return;
+
+		var audio_wrong_answer = new Audio('sound_loose.wav');
+		audio_wrong_answer.play();
+	});
+
+	/* Message received from backend when player gives correct answer.
+	* Play song to indicate to user faster what is the result from the answer
+	*/
+	socket.on('MESSAGE_GAME_ANSWER_CORRECT', function(msg)
+	{
+		// Ignore messages not for this game
+		if( msg.account_id != ethereum_account )
+			return;
+
+		var audio_correct_answer = new Audio('sound_win.wav');
+		audio_correct_answer.play();
+	});
+
+	/* Message received from backend when player wins the game.
+	* Show wining reward YouTube video "Solve AI or Die Trying" by Siraj Raval
+	*/
+	socket.on('MESSAGE_GAME_WIN', function(msg)
+	{
+		// Ignore messages not for this game
+		if( msg.account_id != ethereum_account )
+			return;
+
+		// Play winning video in whole browser window
+		var body = document.getElementsByTagName("body")[0];
+		body.margin = 0;
+		var width = body.offsetWidth;
+		var height = body.offsetHeight;
+		body.innerHTML = "<iframe width='" + width + "' height='" + height + "' src='https://www.youtube.com/embed/SrWJ1Mgn_hc?rel=0&amp;showinfo=0&autoplay=1' frameborder='0' allow='autoplay; encrypted-media' allowfullscreen></iframe>";
+	});
+
+	// Init GUI
+	mindmath_gui_init();
+	
+	// Attach to MetaMask plugin and start pulling user account
+	window.addEventListener('load', function() {
+	// If MetaMask is present in the browser web3 must be defined(injected) already
+	if(typeof web3 !== 'undefined')
+		web3 = new Web3(web3.currentProvider);  
+
+	// Check the connection
+	if(!web3.isConnected()) {
+		console.error("Not connected");
+	}
+
+	// Check if ethereum account is been changed every 300 milliseconds.
+	var accountCheckInterval = setInterval(function() {
+	if (web3.eth.accounts[0] !== ethereum_account) 
+	{
+		ethereum_account = web3.eth.accounts[0]; // Get current used account in MetaMask
+		document.getElementById("account_id").innerHTML = ethereum_account;
+
+		mindmath_give_up(); // When chancing ethereum accounts give up on the game.
+		mindmath_gui_init();
+		mindmath_game_init(ethereum_account);
+	}
+	}, 300);
+
+	});
+
+    </script>
+</body> 
+</html>
